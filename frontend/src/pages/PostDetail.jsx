@@ -161,7 +161,7 @@ export default function PostDetail() {
         }} />
       </div>
 
-      <div style={{ maxWidth: 780, margin: '0 auto', padding: '40px 24px 100px' }}>
+      <div style={{ maxWidth: 780, margin: '0 auto', padding: '40px 16px 100px', overflowX: 'hidden' }}>
 
         {/* Back */}
         <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}>
@@ -228,7 +228,7 @@ export default function PostDetail() {
             </div>
 
             {/* Actions */}
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <div className="post-actions" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {headings.length > 0 && (
                 <button onClick={() => setTocOpen(o => !o)} className="btn-ghost" style={{ padding: '6px 11px' }}>
                   <List size={12} /> Contents
@@ -317,7 +317,10 @@ export default function PostDetail() {
           transition={{ delay: 0.15, duration: 0.4 }}
           style={{
             background: 'var(--bg-card)', border: '1px solid var(--border-muted)',
-            borderRadius: 'var(--radius-lg)', padding: 'clamp(22px, 4vw, 44px)',
+            borderRadius: 'var(--radius-lg)', padding: 'clamp(16px, 4vw, 44px)',
+            marginBottom: 32, minWidth: 0, overflow: 'hidden',
+          }}
+          className="article-body"
             marginBottom: 32,
           }}
         >
@@ -515,7 +518,7 @@ function CodeBlock({ language, code }) {
     setTimeout(() => setCopied(false), 2000)
   }
   return (
-    <div style={{ marginBottom: '1.4rem', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+    <div style={{ marginBottom: '1.4rem', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)', maxWidth: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 14px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-muted)' }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.63rem', color: 'var(--accent)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{language}</span>
         <button onClick={copy} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copied ? 'var(--green)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-mono)', fontSize: '0.68rem', transition: 'color 0.15s' }}>
@@ -523,7 +526,7 @@ function CodeBlock({ language, code }) {
         </button>
       </div>
       <SyntaxHighlighter language={language} style={vscDarkPlus}
-        customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.83rem', background: '#0d1117', padding: '18px 20px' }}
+        customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.83rem', background: '#0d1117', padding: '18px 20px', overflowX: 'auto' }}
         showLineNumbers lineNumberStyle={{ color: 'var(--text-muted)', fontSize: '0.72rem', userSelect: 'none' }}
       >
         {code}

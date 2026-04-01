@@ -141,3 +141,42 @@ body {
   background: var(--border-muted);
   margin: 1.5rem 0;
 }
+
+/* ── Mobile fixes ─────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* Prevent code blocks from overflowing the screen */
+  pre, pre > code {
+    white-space: pre;
+    overflow-x: auto;
+    max-width: 100%;
+    font-size: 0.75rem !important;
+  }
+
+  /* Prevent inline code from breaking layout */
+  code {
+    word-break: break-word;
+  }
+
+  /* Tighter article padding on mobile */
+  .article-body {
+    padding: 16px !important;
+  }
+
+  /* Action buttons wrap on mobile */
+  .post-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* Prevent any element from overflowing */
+  img, table, iframe {
+    max-width: 100%;
+  }
+
+  /* Table horizontal scroll on mobile */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
