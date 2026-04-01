@@ -120,7 +120,7 @@ resource "aws_lambda_function" "posts" {
   source_code_hash = filebase64sha256(var.lambda_zip_path)
   function_name    = "${var.project}-posts"
   role             = local.common_config.role
-  handler          = "src/handlers/posts.listPosts" # overridden per route in API GW
+  handler          = "src/handlers/index.handler" # central dispatcher
   runtime          = local.common_config.runtime
   timeout          = local.common_config.timeout
   memory_size      = local.common_config.memory_size
@@ -142,7 +142,7 @@ resource "aws_lambda_function" "comments" {
   source_code_hash = filebase64sha256(var.lambda_zip_path)
   function_name    = "${var.project}-comments"
   role             = local.common_config.role
-  handler          = "src/handlers/comments.listComments"
+  handler          = "src/handlers/index.handler"
   runtime          = local.common_config.runtime
   timeout          = local.common_config.timeout
   memory_size      = local.common_config.memory_size
@@ -164,7 +164,7 @@ resource "aws_lambda_function" "health" {
   source_code_hash = filebase64sha256(var.lambda_zip_path)
   function_name    = "${var.project}-health"
   role             = local.common_config.role
-  handler          = "src/handlers/health.healthCheck"
+  handler          = "src/handlers/index.handler"
   runtime          = local.common_config.runtime
   timeout          = 10
   memory_size      = 128
@@ -184,7 +184,7 @@ resource "aws_lambda_function" "seed" {
   source_code_hash = filebase64sha256(var.lambda_zip_path)
   function_name    = "${var.project}-seed"
   role             = local.common_config.role
-  handler          = "src/handlers/seed.seedDatabase"
+  handler          = "src/handlers/index.handler"
   runtime          = local.common_config.runtime
   timeout          = 60
   memory_size      = 256

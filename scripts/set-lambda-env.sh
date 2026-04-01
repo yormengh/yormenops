@@ -1,25 +1,37 @@
 #!/usr/bin/env bash
-# Usage: ./scripts/set-lambda-env.sh
-# Sets MONGODB_URI on all Lambda functions
+set -euo pipefail
 
-MONGO_URI='mongodb+srv://yormenops-app:YormenOps2026@yormenops-prod.myqeuvm.mongodb.net/yormenops?retryWrites=true&w=majority'
-CORS='https://d23y79wn0wvbn0.cloudfront.net'
 REGION='us-east-2'
+CORS='https://d23y79wn0wvbn0.cloudfront.net'
 
-ENV_JSON=$(printf '{"Variables":{"NODE_ENV":"prod","MONGODB_URI":"%s","CORS_ORIGIN":"%s","AWS_NODEJS_CONNECTION_REUSE_ENABLED":"1"}}' "$MONGO_URI" "$CORS")
+# Write env JSON to a temp file to avoid shell escaping issues
+cat > /tmp/lambda-env.json << 'ENVEOF'
+{
+  "Variables": {
+    "NODE_ENV": "prod",
+    "MONGODB_URI": "mongodb+srv://yormenops-app:YormenOps2026@yormenops-prod.myqeuvm.mongodb.net/yormenops?retryWrites=true&w=majority",
+    "CORS_ORIGIN": "https://d23y79wn0wvbn0.cloudfront.net",
+    "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1"
+  }
+}
+ENVEOF
+
+echo "Env file contents:"
+cat /tmp/lambda-env.json
 
 for FUNC in yormenops-posts yormenops-comments yormenops-health yormenops-seed; do
   echo "Updating $FUNC..."
   aws lambda update-function-configuration \
     --function-name "$FUNC" \
-    --environment "$ENV_JSON" \
+    --environment "file:///tmp/lambda-env.json" \
     --region "$REGION" \
     --no-cli-pager \
     --query 'FunctionName' \
     --output text
 done
 
-echo "Done. Verifying..."
+echo ""
+echo "Verifying MONGODB_URI on yormenops-health..."
 aws lambda get-function-configuration \
   --function-name yormenops-health \
   --region "$REGION" \

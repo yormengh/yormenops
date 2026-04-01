@@ -125,7 +125,6 @@ jobs:
       - name: Deploy Lambda functions
         working-directory: lambda
         run: |
-          # Update function code for all handlers
           for FUNC in yormenops-posts yormenops-comments yormenops-health yormenops-seed; do
             echo "Updating $FUNC..."
             aws lambda update-function-code \
@@ -147,6 +146,27 @@ jobs:
 
           echo "New layer ARN: $LAYER_ARN"
           echo "LAYER_ARN=$LAYER_ARN" >> $GITHUB_ENV
+
+      - name: Set Lambda environment variables
+        run: |
+          cat > /tmp/lambda-env.json << EOF
+          {
+            "Variables": {
+              "NODE_ENV": "prod",
+              "MONGODB_URI": "${{ secrets.MONGODB_URI }}",
+              "CORS_ORIGIN": "${{ secrets.VITE_API_URL && 'https://d23y79wn0wvbn0.cloudfront.net' || 'https://d23y79wn0wvbn0.cloudfront.net' }}",
+              "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1"
+            }
+          }
+          EOF
+          for FUNC in yormenops-posts yormenops-comments yormenops-health yormenops-seed; do
+            aws lambda update-function-configuration \
+              --function-name "$FUNC" \
+              --environment "file:///tmp/lambda-env.json" \
+              --region ${{ env.AWS_REGION }} \
+              --no-cli-pager \
+              --query 'FunctionName' --output text
+          done
 
       - name: Deploy summary
         run: |
