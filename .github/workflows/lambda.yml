@@ -91,17 +91,15 @@ jobs:
             --label "git.sha=${{ github.sha }}" \
             --label "build.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -t "$FULL_IMAGE" \
-            -t "${{ steps.login-ecr.outputs.registry }}/yormenops/lambda:latest" \
             -f - . <<'DOCKERFILE'
           FROM public.ecr.aws/lambda/nodejs:20
           COPY package.json package-lock.json ./
           RUN npm ci --omit=dev
           COPY src ./src
-          CMD ["src/handlers/posts.listPosts"]
+          CMD ["src/handlers/index.handler"]
           DOCKERFILE
 
           docker push "$FULL_IMAGE"
-          docker push "${{ steps.login-ecr.outputs.registry }}/yormenops/lambda:latest"
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
 
       - name: Scan Lambda image with Trivy
