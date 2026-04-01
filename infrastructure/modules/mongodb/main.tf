@@ -52,10 +52,13 @@ resource "mongodbatlas_database_user" "app" {
     database_name = var.db_name
   }
 
-  # Restrict to app database only — principle of least privilege
   roles {
     role_name     = "read"
     database_name = "local"
+  }
+
+  lifecycle {
+    ignore_changes = [password]
   }
 }
 
@@ -82,4 +85,8 @@ resource "aws_secretsmanager_secret_version" "mongodb_uri" {
     username = mongodbatlas_database_user.app.username
     dbName   = var.db_name
   })
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
 }
