@@ -1,0 +1,12 @@
+node_modules
+*.zip
+.env
+.env.*
+*.log
+.git
+.gitignore
+README.md
+.DS_Store
+src/__tests__
+src/local.js
+layers/

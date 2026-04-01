@@ -1,0 +1,27 @@
+version: '3.9'
+
+# YormenOps local dev — MongoDB only
+# Lambda runs natively: node lambda/src/local.js
+# Frontend runs natively: npm --prefix frontend run dev
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: yormenops-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: yormenops
+    volumes:
+      - mongo_data:/data/db
+    command: ["--quiet"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  mongo_data:
