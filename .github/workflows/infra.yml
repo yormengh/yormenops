@@ -1,0 +1,105 @@
+name: Infrastructure — Terraform Plan & Apply
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infrastructure/**'
+      - '.github/workflows/infra.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infrastructure/**'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action'
+        required: true
+        default: 'plan'
+        type: choice
+        options: [plan, apply, destroy]
+
+env:
+  AWS_REGION:     us-east-2
+  TF_WORKING_DIR: infrastructure/environments/prod
+  TF_VERSION:     1.7.4
+
+jobs:
+  terraform:
+    name: Terraform ${{ github.event.inputs.action || (github.ref == 'refs/heads/main' && github.event_name == 'push' && 'apply' || 'plan') }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Build Lambda zips before apply so Terraform can hash them
+      - name: Build Lambda artifacts
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cd ../../../lambda
+          npm ci --production --prefer-offline
+          zip -r lambda.zip src/ node_modules/ package.json --exclude "*.test.js" --exclude "src/local.js"
+          cd layers/mongodb/nodejs && npm ci --prefer-offline && cd ..
+          zip -r ../../../lambda/mongodb-layer.zip nodejs/
+
+      - run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - run: terraform init
+
+      - run: terraform validate -no-color
+
+      - name: Checkov IaC scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infrastructure/
+          framework: terraform
+          soft_fail: true
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -no-color -input=false \
+            -var="github_org=${{ secrets.GITHUB_ORG }}" \
+            -var="atlas_org_id=${{ secrets.ATLAS_ORG_ID }}" \
+            -var="atlas_public_key=${{ secrets.ATLAS_PUBLIC_KEY }}" \
+            -var="atlas_private_key=${{ secrets.ATLAS_PRIVATE_KEY }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -out=tfplan
+        env:
+          TF_VAR_region: us-east-2
+
+      - name: Comment plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### 🏗️ Terraform Plan\n\`\`\`\n${{ steps.plan.outputs.stdout }}\n\`\`\`\n*By @${{ github.actor }}*`
+            github.rest.issues.createComment({ issue_number: context.issue.number, owner: context.repo.owner, repo: context.repo.repo, body: output })
+
+      - name: Terraform Apply
+        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event.inputs.action == 'apply'
+        run: terraform apply -auto-approve -input=false tfplan
+
+      - name: Outputs
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "## 🏗️ YormenOps Infra Outputs" >> $GITHUB_STEP_SUMMARY
+          terraform output -no-color >> $GITHUB_STEP_SUMMARY
