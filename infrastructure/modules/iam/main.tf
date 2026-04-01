@@ -174,6 +174,12 @@ resource "aws_iam_role_policy_attachment" "github_actions" {
   policy_arn = aws_iam_policy.github_actions.arn
 }
 
+# Read-only access for terraform plan
+resource "aws_iam_role_policy_attachment" "github_actions_readonly" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+}
+
 variable "project" { type = string }
 variable "github_org" { type = string }
 variable "github_repo" { type = string }
