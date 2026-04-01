@@ -114,7 +114,7 @@ data "aws_iam_policy_document" "github_actions_policy" {
 
   statement {
     effect    = "Allow"
-    actions   = ["secretsmanager:DescribeSecret"]
+    actions   = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue", "secretsmanager:GetResourcePolicy", "secretsmanager:PutSecretValue", "secretsmanager:DeleteSecretValue"]
     resources = ["*"]
   }
 
