@@ -36,3 +36,8 @@ output "connection_string_srv" {
   value     = mongodbatlas_cluster.this.connection_strings[0].standard_srv
   sensitive = true
 }
+
+output "connection_uri" {
+  value     = "mongodb+srv://${mongodbatlas_database_user.app.username}:${var.db_password}@${mongodbatlas_cluster.this.connection_strings[0].standard_srv}/${var.db_name}?retryWrites=true&w=majority"
+  sensitive = true
+}

@@ -80,7 +80,7 @@ module "lambda" {
   environment            = local.environment
   lambda_zip_path        = var.lambda_zip_path
   mongodb_layer_zip_path = var.mongodb_layer_zip_path
-  mongodb_uri            = var.mongodb_uri_override != "" ? var.mongodb_uri_override : ""
+  mongodb_uri            = var.mongodb_uri_override != "" ? var.mongodb_uri_override : module.mongodb.connection_uri
   mongodb_secret_arn     = module.mongodb.secret_arn
   frontend_url           = "https://${module.s3_cloudfront.cloudfront_domain}"
   seed_token             = var.seed_token
