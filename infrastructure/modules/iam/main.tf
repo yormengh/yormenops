@@ -67,6 +67,12 @@ data "aws_iam_policy_document" "github_actions_policy" {
 
   statement {
     effect    = "Allow"
+    actions   = ["lambda:PublishLayerVersion"]
+    resources = ["arn:aws:lambda:*:*:layer:*"]
+  }
+
+  statement {
+    effect    = "Allow"
     actions   = ["s3:PutObject", "s3:DeleteObject", "s3:GetObject", "s3:ListBucket"]
     resources = [var.frontend_bucket_arn, "${var.frontend_bucket_arn}/*"]
   }

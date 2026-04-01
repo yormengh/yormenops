@@ -62,12 +62,16 @@ jobs:
       - name: Whitelist GitHub Actions IP in Atlas
         run: |
           IP=$(curl -s https://api.ipify.org)
-          curl -s -u "${{ secrets.ATLAS_PUBLIC_KEY }}:${{ secrets.ATLAS_PRIVATE_KEY }}" \
+          echo "Runner IP: $IP"
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -u "${{ secrets.ATLAS_PUBLIC_KEY }}:${{ secrets.ATLAS_PRIVATE_KEY }}" \
             --digest \
+            -H "Accept: application/vnd.atlas.2023-01-01+json" \
             -H "Content-Type: application/json" \
             -X POST "https://cloud.mongodb.com/api/atlas/v2/orgs/${{ secrets.ATLAS_ORG_ID }}/apiKeys/${{ secrets.ATLAS_KEY_ID }}/accessList" \
-            --data "[{\"ipAddress\":\"${IP}\",\"comment\":\"github-actions-temp\"}]"
-          echo "Whitelisted IP: $IP"
+            --data "[{\"ipAddress\":\"${IP}\",\"comment\":\"github-actions-temp\"}]")
+          echo "Atlas response: $RESPONSE"
+          sleep 5
 
       - run: terraform fmt -check -recursive
         continue-on-error: true
@@ -91,6 +95,7 @@ jobs:
             -var="atlas_public_key=${{ secrets.ATLAS_PUBLIC_KEY }}" \
             -var="atlas_private_key=${{ secrets.ATLAS_PRIVATE_KEY }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="alert_email=${{ secrets.ALERT_EMAIL }}" \
             -out=tfplan
         env:
           TF_VAR_region: us-east-2
