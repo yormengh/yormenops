@@ -321,8 +321,6 @@ export default function PostDetail() {
             marginBottom: 32, minWidth: 0, overflow: 'hidden',
           }}
           className="article-body"
-            marginBottom: 32,
-          }}
         >
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
             {post.body}
