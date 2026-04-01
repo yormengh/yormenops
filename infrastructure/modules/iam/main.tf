@@ -88,6 +88,79 @@ data "aws_iam_policy_document" "github_actions_policy" {
     actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
     resources = [var.tfstate_lock_table_arn]
   }
+
+  # Terraform plan — read permissions
+  statement {
+    effect    = "Allow"
+    actions   = [
+      "iam:GetRole", "iam:GetPolicy", "iam:GetPolicyVersion",
+      "iam:ListRolePolicies", "iam:ListAttachedRolePolicies",
+      "iam:GetOpenIDConnectProvider", "iam:GetRolePolicy",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["logs:DescribeLogGroups", "logs:ListTagsLogGroup"]
+    resources = ["*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["secretsmanager:DescribeSecret"]
+    resources = ["*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["sns:GetTopicAttributes", "sns:ListTagsForResource"]
+    resources = ["*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = [
+      "s3:GetBucketPolicy", "s3:GetBucketPublicAccessBlock",
+      "s3:GetBucketVersioning", "s3:GetBucketEncryption",
+      "s3:GetBucketTagging", "s3:GetBucketLocation",
+      "s3:GetLifecycleConfiguration", "s3:GetBucketLogging",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = [
+      "cloudfront:GetDistribution", "cloudfront:GetOriginAccessControl",
+      "cloudfront:ListTagsForResource", "cloudfront:GetDistributionConfig",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["lambda:GetLayerVersion", "lambda:GetFunctionConfiguration", "lambda:ListTags"]
+    resources = ["*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["apigateway:GET"]
+    resources = ["*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["cloudwatch:DescribeAlarms", "cloudwatch:ListTagsForResource", "cloudwatch:GetDashboard"]
+    resources = ["*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["ecr:DescribeRepositories", "ecr:ListTagsForResource", "ecr:GetLifecyclePolicy"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_policy" "github_actions" {
