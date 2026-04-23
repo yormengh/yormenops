@@ -130,6 +130,9 @@ jobs:
               --zip-file fileb://lambda.zip \
               --region ${{ env.AWS_REGION }} \
               --no-cli-pager
+            aws lambda wait function-updated \
+              --function-name "$FUNC" \
+              --region ${{ env.AWS_REGION }}
           done
 
           # Publish updated layer
@@ -145,6 +148,21 @@ jobs:
           echo "New layer ARN: $LAYER_ARN"
           echo "LAYER_ARN=$LAYER_ARN" >> $GITHUB_ENV
 
+      - name: Attach new layer to Lambda functions
+        run: |
+          for FUNC in yormenops-posts yormenops-comments yormenops-health yormenops-seed; do
+            aws lambda update-function-configuration \
+              --function-name "$FUNC" \
+              --layers "${{ env.LAYER_ARN }}" \
+              --region ${{ env.AWS_REGION }} \
+              --no-cli-pager \
+              --query 'FunctionName' --output text
+            # Wait for update to complete before moving to next function
+            aws lambda wait function-updated \
+              --function-name "$FUNC" \
+              --region ${{ env.AWS_REGION }}
+          done
+
       - name: Set Lambda environment variables
         run: |
           cat > /tmp/lambda-env.json << EOF
@@ -152,7 +170,7 @@ jobs:
             "Variables": {
               "NODE_ENV": "prod",
               "MONGODB_URI": "${{ secrets.MONGODB_URI }}",
-              "CORS_ORIGIN": "${{ secrets.VITE_API_URL && 'https://d23y79wn0wvbn0.cloudfront.net' || 'https://d23y79wn0wvbn0.cloudfront.net' }}",
+              "CORS_ORIGIN": "${{ secrets.CORS_ORIGIN }}",
               "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1"
             }
           }

@@ -11,6 +11,7 @@ import toast from 'react-hot-toast'
 import { getPost, deletePost, reactToPost, getComments, addComment, deleteComment } from '../utils/api.js'
 import { getTagStyle, REACTIONS } from '../utils/tags.js'
 
+
 // Extract headings from markdown for table of contents
 function extractHeadings(markdown) {
   const lines = markdown?.split('\n') || []
@@ -24,11 +25,38 @@ function extractHeadings(markdown) {
     })
 }
 
+// Gold decorative rule
+function GoldRule({ width = 48 }) {
+  return (
+    <div style={{
+      width, height: 1,
+      background: 'var(--gold)',
+      opacity: 0.55,
+      margin: '14px 0 0',
+    }} />
+  )
+}
+
 // Set or update a meta tag
 function setMeta(property, content) {
   let el = document.querySelector(`meta[property="${property}"]`)
   if (!el) { el = document.createElement('meta'); el.setAttribute('property', property); document.head.appendChild(el) }
   el.setAttribute('content', content)
+}
+
+// Eyebrow label with flanking gold lines
+function SectionEyebrow({ label }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center', marginBottom: 14 }}>
+      <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, var(--gold-line))' }} />
+      <span style={{
+        fontFamily: 'var(--font-mono)', fontSize: '0.6rem',
+        letterSpacing: '0.16em', textTransform: 'uppercase',
+        color: 'var(--gold)', opacity: 0.8,
+      }}>{label}</span>
+      <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, var(--gold-line), transparent)' }} />
+    </div>
+  )
 }
 
 // Share URLs
@@ -45,16 +73,16 @@ function getShareUrls(title, url) {
 export default function PostDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [post, setPost]           = useState(null)
-  const [comments, setComments]   = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [reactions, setReactions] = useState({})
-  const [voted, setVoted]         = useState({})
-  const [comment, setComment]     = useState('')
+  const [post, setPost]                   = useState(null)
+  const [comments, setComments]           = useState([])
+  const [loading, setLoading]             = useState(true)
+  const [reactions, setReactions]         = useState({})
+  const [voted, setVoted]                 = useState({})
+  const [comment, setComment]             = useState('')
   const [commenterName, setCommenterName] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [scrollPct, setScrollPct] = useState(0)
-  const [tocOpen, setTocOpen]     = useState(false)
+  const [submitting, setSubmitting]       = useState(false)
+  const [scrollPct, setScrollPct]         = useState(0)
+  const [tocOpen, setTocOpen]             = useState(false)
   const articleRef = useRef(null)
 
   useEffect(() => {
@@ -150,13 +178,15 @@ export default function PostDetail() {
 
   return (
     <>
-      {/* Reading progress bar */}
+      {/* Reading progress bar — 1px gold gradient */}
       <div style={{
-        position: 'fixed', top: 58, left: 0, right: 0, height: 2, zIndex: 99,
+        position: 'fixed', top: 58, left: 0, right: 0, height: 1, zIndex: 99,
         background: 'var(--border-muted)',
       }}>
         <motion.div style={{
-          height: '100%', background: 'var(--accent)',
+          height: '100%',
+          background: 'linear-gradient(90deg, var(--gold), var(--gold-light))',
+          boxShadow: '0 0 6px rgba(197,160,80,0.4)',
           width: `${scrollPct}%`, transition: 'width 0.1s linear',
         }} />
       </div>
@@ -167,11 +197,12 @@ export default function PostDetail() {
         <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}>
           <Link to="/" style={{
             display: 'inline-flex', alignItems: 'center', gap: 5,
-            fontFamily: 'var(--font-mono)', fontSize: '0.7rem', letterSpacing: '0.04em',
-            color: 'var(--text-muted)', textDecoration: 'none', marginBottom: 36,
+            fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)', textDecoration: 'none', marginBottom: 40,
             transition: 'color 0.15s',
           }}
-            onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--gold)'}
             onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
           >
             <ArrowLeft size={12} /> Back to feed
@@ -194,33 +225,37 @@ export default function PostDetail() {
           )}
 
           <h1 style={{
-            fontFamily: 'var(--font-display)', fontWeight: 700,
-            fontSize: 'clamp(1.6rem, 4vw, 2.3rem)',
-            lineHeight: 1.2, letterSpacing: '-0.02em',
-            color: 'var(--text-primary)', marginBottom: 24,
+            fontFamily: 'var(--font-display)', fontWeight: 400,
+            fontSize: 'clamp(1.8rem, 4vw, 2.8rem)',
+            lineHeight: 1.15, letterSpacing: '-0.01em',
+            color: 'var(--text-primary)', marginBottom: 0,
           }}>{post.title}</h1>
+          <GoldRule width={48} />
 
           {/* Meta row */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             flexWrap: 'wrap', gap: 12, marginBottom: 32,
-            paddingBottom: 24, borderBottom: '1px solid var(--border-muted)',
+            paddingTop: 20, paddingBottom: 24, borderBottom: '1px solid var(--border-muted)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {/* Author monogram */}
               <div style={{
-                width: 36, height: 36, borderRadius: '50%', background: 'var(--accent)',
+                width: 38, height: 38, borderRadius: '50%',
+                border: '1px solid var(--gold-line)',
+                background: 'var(--gold-glow)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '0.7rem', fontWeight: 700, color: '#0a0a0a', fontFamily: 'var(--font-mono)',
-                flexShrink: 0,
+                fontSize: '0.72rem', fontWeight: 600, color: 'var(--gold)',
+                fontFamily: 'var(--font-display)', flexShrink: 0,
               }}>
                 {(post.authorName || 'MA').slice(0, 2).toUpperCase()}
               </div>
               <div>
-                <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+                <div style={{ fontFamily: 'var(--font-body)', fontWeight: 500, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
                   {post.authorName || 'Moses Amartey'}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                  <span>{post.createdAt ? format(new Date(post.createdAt), 'MMM d, yyyy') : ''}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  <span>{post.createdAt ? format(new Date(post.createdAt), 'MMMM d, yyyy') : ''}</span>
                   {post.readTime && <><span>·</span><span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><BookOpen size={9} />{post.readTime} min read</span></>}
                   {post.views > 0 && <><span>·</span><span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Eye size={9} />{post.views} views</span></>}
                 </div>
@@ -282,10 +317,10 @@ export default function PostDetail() {
               >
                 <div style={{
                   background: 'var(--bg-card)', border: '1px solid var(--border-muted)',
-                  borderLeft: '3px solid var(--accent)',
+                  borderLeft: '2px solid var(--gold)',
                   borderRadius: 'var(--radius)', padding: '16px 20px',
                 }}>
-                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--gold)', opacity: 0.8, marginBottom: 12 }}>
                     Contents
                   </p>
                   <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -296,7 +331,7 @@ export default function PostDetail() {
                           color: h.level === 1 ? 'var(--text-primary)' : 'var(--text-secondary)',
                           textDecoration: 'none', transition: 'color 0.15s',
                         }}
-                          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+                          onMouseEnter={e => e.currentTarget.style.color = 'var(--gold)'}
                           onMouseLeave={e => e.currentTarget.style.color = h.level === 1 ? 'var(--text-primary)' : 'var(--text-secondary)'}
                         >
                           {h.text}
@@ -317,7 +352,7 @@ export default function PostDetail() {
           transition={{ delay: 0.15, duration: 0.4 }}
           style={{
             background: 'var(--bg-card)', border: '1px solid var(--border-muted)',
-            borderRadius: 'var(--radius-lg)', padding: 'clamp(16px, 4vw, 44px)',
+            borderRadius: 'var(--radius-lg)', padding: 'clamp(20px, 4vw, 52px)',
             marginBottom: 32, minWidth: 0, overflow: 'hidden',
           }}
           className="article-body"
@@ -332,12 +367,10 @@ export default function PostDetail() {
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
           style={{
             background: 'var(--bg-card)', border: '1px solid var(--border-muted)',
-            borderRadius: 'var(--radius)', padding: '20px 24px', marginBottom: 40,
+            borderRadius: 'var(--radius)', padding: '24px 28px', marginBottom: 40,
           }}
         >
-          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14, textAlign: 'center' }}>
-            Found this useful? React · {totalReactions} total
-          </p>
+          <SectionEyebrow label={`React · ${totalReactions} total`} />
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
             {REACTIONS.map(r => (
               <motion.button
@@ -350,13 +383,13 @@ export default function PostDetail() {
                   display: 'flex', alignItems: 'center', gap: 7,
                   padding: '8px 14px', borderRadius: 'var(--radius-sm)',
                   cursor: voted[r.key] ? 'default' : 'pointer',
-                  background: voted[r.key] ? 'var(--accent-dim)' : 'var(--bg-subtle)',
-                  border: `1px solid ${voted[r.key] ? 'rgba(201,168,76,0.35)' : 'var(--border-muted)'}`,
+                  background: voted[r.key] ? 'var(--gold-dim)' : 'var(--bg-subtle)',
+                  border: `1px solid ${voted[r.key] ? 'var(--gold-line)' : 'var(--border-muted)'}`,
                   transition: 'all 0.15s',
                 }}
               >
                 <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>{r.emoji}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: voted[r.key] ? 'var(--accent)' : 'var(--text-muted)' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: voted[r.key] ? 'var(--gold)' : 'var(--text-muted)' }}>
                   {r.label} · {reactions[r.key] || 0}
                 </span>
               </motion.button>
@@ -366,11 +399,11 @@ export default function PostDetail() {
 
         {/* Comments */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, paddingBottom: 14, borderBottom: '1px solid var(--border-muted)' }}>
-            <MessageSquare size={14} style={{ color: 'var(--accent)' }} />
-            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, paddingBottom: 16, borderBottom: '1px solid var(--border-muted)' }}>
+            <MessageSquare size={14} style={{ color: 'var(--gold)', opacity: 0.7 }} />
+            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 400, fontSize: '1.5rem', color: 'var(--text-primary)' }}>
               {comments.length} Comment{comments.length !== 1 ? 's' : ''}
-            </h3>
+            </h2>
           </div>
 
           {/* Comment form */}
@@ -381,6 +414,8 @@ export default function PostDetail() {
                 onChange={e => setCommenterName(e.target.value)}
                 placeholder="Your name (optional)"
                 style={inputStyle}
+                onFocus={e => { e.target.style.borderColor = 'var(--gold-line)'; e.target.style.boxShadow = '0 0 0 3px var(--gold-glow)' }}
+                onBlur={e => { e.target.style.borderColor = 'var(--border-muted)'; e.target.style.boxShadow = 'none' }}
               />
               <textarea
                 value={comment}
@@ -388,6 +423,8 @@ export default function PostDetail() {
                 placeholder="Share your thoughts or questions..."
                 rows={3}
                 style={{ ...inputStyle, resize: 'vertical', minHeight: 90 }}
+                onFocus={e => { e.target.style.borderColor = 'var(--gold-line)'; e.target.style.boxShadow = '0 0 0 3px var(--gold-glow)' }}
+                onBlur={e => { e.target.style.borderColor = 'var(--border-muted)'; e.target.style.boxShadow = 'none' }}
               />
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button type="submit" disabled={submitting || !comment.trim()} className="btn-primary"
@@ -401,7 +438,7 @@ export default function PostDetail() {
           {/* Comments list */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {comments.length === 0 && (
-              <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0' }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center', padding: '28px 0', letterSpacing: '0.04em' }}>
                 No comments yet. Be the first.
               </p>
             )}
@@ -411,22 +448,24 @@ export default function PostDetail() {
                 <motion.div key={cid || i}
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04 }}
-                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border-muted)', borderRadius: 'var(--radius)', padding: '14px 18px' }}
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border-muted)', borderRadius: 'var(--radius)', padding: '16px 20px' }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{
-                        width: 26, height: 26, borderRadius: '50%', background: 'var(--bg-hover)',
-                        border: '1px solid var(--border)',
+                        width: 28, height: 28, borderRadius: '50%',
+                        border: '1px solid var(--gold-line)',
+                        background: 'var(--gold-glow)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)',
+                        fontSize: '0.58rem', fontWeight: 600, color: 'var(--gold)',
+                        fontFamily: 'var(--font-display)',
                       }}>
                         {(c.authorName || 'AN').slice(0, 2).toUpperCase()}
                       </div>
-                      <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.82rem', color: 'var(--text-primary)' }}>
+                      <span style={{ fontFamily: 'var(--font-body)', fontWeight: 500, fontSize: '0.84rem', color: 'var(--text-primary)' }}>
                         {c.authorName || 'Anonymous'}
                       </span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-muted)' }}>
                         {c.createdAt ? formatDistanceToNow(new Date(c.createdAt), { addSuffix: true }) : ''}
                       </span>
                     </div>
@@ -438,7 +477,7 @@ export default function PostDetail() {
                       <Trash2 size={12} />
                     </button>
                   </div>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', lineHeight: 1.7, margin: 0 }}>{c.body}</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.75, margin: 0, fontWeight: 300 }}>{c.body}</p>
                 </motion.div>
               )
             })}
@@ -453,12 +492,13 @@ export default function PostDetail() {
 function Heading({ level, children }) {
   const text = typeof children === 'string' ? children : children?.toString() || ''
   const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-  const sizes = { 1: '1.65rem', 2: '1.28rem', 3: '1.05rem' }
-  const colors = { 1: 'var(--text-primary)', 2: 'var(--text-primary)', 3: 'var(--accent)' }
+  const sizes = { 1: '1.7rem', 2: '1.3rem', 3: '1.08rem' }
+  const weights = { 1: 400, 2: 400, 3: 400 }
+  const colors = { 1: 'var(--text-primary)', 2: 'var(--text-primary)', 3: 'var(--gold)' }
   const Tag = `h${level}`
   return (
     <Tag id={slug} style={{
-      fontFamily: 'var(--font-display)', fontWeight: level === 1 ? 700 : 600,
+      fontFamily: 'var(--font-display)', fontWeight: weights[level] || 400,
       fontSize: sizes[level] || '1rem', color: colors[level] || 'var(--text-primary)',
       margin: level === 1 ? '2rem 0 1rem' : '1.6rem 0 0.7rem',
       paddingBottom: level === 1 ? '0.5rem' : 0,
@@ -477,26 +517,26 @@ const mdComponents = {
       ? <CodeBlock language={match[1]} code={String(children).replace(/\n$/, '')} />
       : <code style={{
           fontFamily: 'var(--font-mono)', fontSize: '0.83em',
-          background: 'rgba(201,168,76,0.1)', color: 'var(--accent)',
+          background: 'var(--gold-dim)', color: 'var(--gold)',
           padding: '2px 6px', borderRadius: 3,
-          border: '1px solid rgba(201,168,76,0.18)',
+          border: '1px solid rgba(197,160,80,0.18)',
         }} {...props}>{children}</code>
   },
   h1: ({ children }) => <Heading level={1}>{children}</Heading>,
   h2: ({ children }) => <Heading level={2}>{children}</Heading>,
   h3: ({ children }) => <Heading level={3}>{children}</Heading>,
-  p:  ({ children }) => <p style={{ color: 'var(--text-secondary)', lineHeight: 1.85, marginBottom: '1.1rem', fontSize: '0.95rem', fontFamily: 'var(--font-body)' }}>{children}</p>,
+  p:  ({ children }) => <p style={{ color: 'var(--text-secondary)', lineHeight: 1.85, marginBottom: '1.1rem', fontSize: '0.95rem', fontFamily: 'var(--font-body)', fontWeight: 300 }}>{children}</p>,
   ul: ({ children }) => <ul style={{ color: 'var(--text-secondary)', paddingLeft: '1.4rem', marginBottom: '1.1rem', lineHeight: 1.9, fontFamily: 'var(--font-body)' }}>{children}</ul>,
   ol: ({ children }) => <ol style={{ color: 'var(--text-secondary)', paddingLeft: '1.4rem', marginBottom: '1.1rem', lineHeight: 1.9, fontFamily: 'var(--font-body)' }}>{children}</ol>,
   li: ({ children }) => <li style={{ marginBottom: '0.25rem', fontSize: '0.95rem' }}>{children}</li>,
   blockquote: ({ children }) => (
     <blockquote style={{
-      borderLeft: '3px solid var(--accent)', paddingLeft: '1.1rem',
-      margin: '1.4rem 0', color: 'var(--text-muted)', fontStyle: 'italic',
-      background: 'rgba(201,168,76,0.04)', borderRadius: '0 4px 4px 0', padding: '10px 16px',
+      borderLeft: '2px solid var(--gold)', paddingLeft: '1.1rem',
+      margin: '1.4rem 0', color: 'var(--text-secondary)', fontStyle: 'italic',
+      background: 'var(--gold-glow)', borderRadius: '0 4px 4px 0', padding: '12px 18px',
     }}>{children}</blockquote>
   ),
-  a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>{children}</a>,
+  a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>{children}</a>,
   strong: ({ children }) => <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{children}</strong>,
   hr: () => <hr style={{ border: 'none', borderTop: '1px solid var(--border-muted)', margin: '2rem 0' }} />,
   table: ({ children }) => (
@@ -504,7 +544,7 @@ const mdComponents = {
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>{children}</table>
     </div>
   ),
-  th: ({ children }) => <th style={{ padding: '9px 14px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)', textAlign: 'left', fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{children}</th>,
+  th: ({ children }) => <th style={{ padding: '9px 14px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)', textAlign: 'left', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{children}</th>,
   td: ({ children }) => <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border-muted)', color: 'var(--text-secondary)', fontSize: '0.88rem', fontFamily: 'var(--font-body)' }}>{children}</td>,
 }
 
@@ -518,7 +558,7 @@ function CodeBlock({ language, code }) {
   return (
     <div style={{ marginBottom: '1.4rem', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)', maxWidth: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 14px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-muted)' }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.63rem', color: 'var(--accent)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{language}</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.63rem', color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{language}</span>
         <button onClick={copy} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copied ? 'var(--green)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-mono)', fontSize: '0.68rem', transition: 'color 0.15s' }}>
           {copied ? <><Check size={11} /> Copied</> : <><Copy size={11} /> Copy</>}
         </button>
@@ -553,5 +593,5 @@ const inputStyle = {
   background: 'var(--bg-subtle)', border: '1px solid var(--border-muted)',
   borderRadius: 'var(--radius)', color: 'var(--text-primary)',
   fontFamily: 'var(--font-body)', fontSize: '0.86rem',
-  outline: 'none', transition: 'border-color 0.15s',
+  outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s',
 }

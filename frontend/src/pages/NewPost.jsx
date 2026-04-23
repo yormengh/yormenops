@@ -75,12 +75,13 @@ export default function NewPost() {
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
 
         {/* Header */}
-        <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ marginBottom: 32, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.5rem', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 400, fontSize: 'clamp(1.8rem, 4vw, 2.6rem)', color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.1 }}>
               New Post
             </h1>
-            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 4, letterSpacing: '0.04em' }}>
+            <div style={{ width: 48, height: 1, background: 'var(--gold)', opacity: 0.55, margin: '10px 0 8px' }} />
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
               ~{readTime} min read · {body.split(/\s+/).filter(Boolean).length} words
             </p>
           </div>
@@ -104,11 +105,11 @@ export default function NewPost() {
               width: '100%', padding: '12px 16px', marginBottom: 14,
               background: 'var(--bg-card)', border: '1px solid var(--border-muted)',
               borderRadius: 'var(--radius)', color: 'var(--text-primary)',
-              fontFamily: 'var(--font-display)', fontSize: '1.1rem',
-              fontWeight: 600, outline: 'none', transition: 'border-color 0.15s',
+              fontFamily: 'var(--font-display)', fontSize: 'clamp(1.1rem, 2.5vw, 1.4rem)',
+              fontWeight: 400, outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s',
             }}
-            onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-            onBlur={e => e.target.style.borderColor = 'var(--border-muted)'}
+            onFocus={e => { e.target.style.borderColor = 'var(--gold-line)'; e.target.style.boxShadow = '0 0 0 3px var(--gold-glow)' }}
+            onBlur={e => { e.target.style.borderColor = 'var(--border-muted)'; e.target.style.boxShadow = 'none' }}
           />
 
           {/* Author */}
@@ -119,17 +120,17 @@ export default function NewPost() {
             style={{
               width: '100%', maxWidth: 280, padding: '8px 12px', marginBottom: 14,
               background: 'var(--bg-card)', border: '1px solid var(--border-muted)',
-              borderRadius: 'var(--radius)', color: 'var(--text-secondary)',
-              fontFamily: 'var(--font-mono)', fontSize: '0.78rem', outline: 'none',
-              transition: 'border-color 0.15s',
+              borderRadius: 'var(--radius)', color: 'var(--text-muted)',
+              fontFamily: 'var(--font-mono)', fontSize: '0.75rem', outline: 'none',
+              transition: 'border-color 0.15s, box-shadow 0.15s',
             }}
-            onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-            onBlur={e => e.target.style.borderColor = 'var(--border-muted)'}
+            onFocus={e => { e.target.style.borderColor = 'var(--gold-line)'; e.target.style.boxShadow = '0 0 0 3px var(--gold-glow)' }}
+            onBlur={e => { e.target.style.borderColor = 'var(--border-muted)'; e.target.style.boxShadow = 'none' }}
           />
 
           {/* Tags */}
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-muted)', borderRadius: 'var(--radius)', padding: '14px 16px', marginBottom: 14 }}>
-            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--gold)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.14em', opacity: 0.8 }}>
               Tags
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
@@ -177,8 +178,8 @@ export default function NewPost() {
             </motion.div>
           ) : (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
-                <Lightbulb size={10} style={{ color: 'var(--accent)' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, fontFamily: 'var(--font-mono)', fontSize: '0.62rem', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+                <Lightbulb size={10} style={{ color: 'var(--gold)', opacity: 0.7 }} />
                 Markdown supported — code blocks, tables, headers, bold, links
               </div>
               <textarea
@@ -190,10 +191,10 @@ export default function NewPost() {
                   borderRadius: 'var(--radius-lg)', color: 'var(--text-primary)',
                   fontFamily: 'var(--font-mono)', fontSize: '0.85rem',
                   lineHeight: 1.75, outline: 'none', resize: 'vertical',
-                  transition: 'border-color 0.15s',
+                  transition: 'border-color 0.15s, box-shadow 0.15s',
                 }}
-                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                onBlur={e => e.target.style.borderColor = 'var(--border-muted)'}
+                onFocus={e => { e.target.style.borderColor = 'var(--gold-line)'; e.target.style.boxShadow = '0 0 0 3px var(--gold-glow)' }}
+                onBlur={e => { e.target.style.borderColor = 'var(--border-muted)'; e.target.style.boxShadow = 'none' }}
               />
             </motion.div>
           )}
@@ -216,19 +217,21 @@ function MarkdownPreview({ body }) {
               showLineNumbers {...props}
             >{String(children).replace(/\n$/, '')}</SyntaxHighlighter>
           ) : (
-            <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.83em', background: 'rgba(201,168,76,0.1)', color: 'var(--accent)', padding: '2px 6px', borderRadius: 3 }} {...props}>{children}</code>
+            <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.83em', background: 'var(--gold-dim)', color: 'var(--gold)', padding: '2px 6px', borderRadius: 3 }} {...props}>{children}</code>
           )
         },
-        h1: ({ children }) => <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.7rem', color: 'var(--text-primary)', margin: '1.8rem 0 0.9rem', borderBottom: '1px solid var(--border-muted)', paddingBottom: '0.5rem' }}>{children}</h1>,
-        h2: ({ children }) => <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '1.3rem', color: 'var(--text-primary)', margin: '1.5rem 0 0.7rem' }}>{children}</h2>,
-        h3: ({ children }) => <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '1.05rem', color: 'var(--accent)', margin: '1.2rem 0 0.5rem' }}>{children}</h3>,
-        p:  ({ children }) => <p  style={{ color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: '1rem', fontSize: '0.93rem' }}>{children}</p>,
+        h1: ({ children }) => <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 400, fontSize: '1.7rem', color: 'var(--text-primary)', margin: '1.8rem 0 0.9rem', borderBottom: '1px solid var(--border-muted)', paddingBottom: '0.5rem' }}>{children}</h1>,
+        h2: ({ children }) => <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 400, fontSize: '1.3rem', color: 'var(--text-primary)', margin: '1.5rem 0 0.7rem' }}>{children}</h2>,
+        h3: ({ children }) => <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 400, fontSize: '1.08rem', color: 'var(--gold)', margin: '1.2rem 0 0.5rem' }}>{children}</h3>,
+        p:  ({ children }) => <p  style={{ color: 'var(--text-secondary)', lineHeight: 1.85, marginBottom: '1rem', fontSize: '0.93rem', fontWeight: 300 }}>{children}</p>,
         ul: ({ children }) => <ul style={{ color: 'var(--text-secondary)', paddingLeft: '1.4rem', marginBottom: '1rem', lineHeight: 1.9 }}>{children}</ul>,
         ol: ({ children }) => <ol style={{ color: 'var(--text-secondary)', paddingLeft: '1.4rem', marginBottom: '1rem', lineHeight: 1.9 }}>{children}</ol>,
         li: ({ children }) => <li style={{ marginBottom: '0.25rem' }}>{children}</li>,
-        blockquote: ({ children }) => <blockquote style={{ borderLeft: '3px solid var(--accent)', paddingLeft: '1rem', margin: '1.2rem 0', color: 'var(--text-muted)', fontStyle: 'italic' }}>{children}</blockquote>,
-        a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>{children}</a>,
+        blockquote: ({ children }) => <blockquote style={{ borderLeft: '2px solid var(--gold)', paddingLeft: '1rem', margin: '1.2rem 0', color: 'var(--text-secondary)', fontStyle: 'italic', background: 'var(--gold-glow)', borderRadius: '0 4px 4px 0', padding: '10px 16px' }}>{children}</blockquote>,
+        a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold)', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>{children}</a>,
         strong: ({ children }) => <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{children}</strong>,
+        th: ({ children }) => <th style={{ padding: '9px 14px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)', textAlign: 'left', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{children}</th>,
+        td: ({ children }) => <td style={{ padding: '9px 14px', borderBottom: '1px solid var(--border-muted)', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>{children}</td>,
       }}
     >{body}</ReactMarkdown>
   )
