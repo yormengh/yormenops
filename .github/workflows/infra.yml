@@ -123,3 +123,4 @@ jobs:
         run: |
           echo "## 🏗️ YormenOps Infra Outputs" >> $GITHUB_STEP_SUMMARY
           terraform output -no-color >> $GITHUB_STEP_SUMMARY
+

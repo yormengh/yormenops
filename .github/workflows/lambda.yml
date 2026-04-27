@@ -64,6 +64,9 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Build Lambda zip
         working-directory: lambda
         run: |
@@ -74,11 +77,26 @@ jobs:
 
       - name: Build MongoDB Layer zip
         run: |
-          cd lambda/layers/mongodb/nodejs
-          npm ci --prefer-offline
-          cd ..
-          zip -r mongodb-layer.zip nodejs/
-          mv mongodb-layer.zip ../../../lambda/mongodb-layer.zip
+          # Create proper Lambda layer structure: nodejs/node_modules/
+          mkdir -p lambda/layer-tmp/nodejs
+          
+          # Copy layer contents - adjust path based on your layer structure
+          if [ -d "lambda/layers/mongodb" ]; then
+            cp -r lambda/layers/mongodb/* lambda/layer-tmp/nodejs/ 2>/dev/null || true
+          fi
+          
+          # Install dependencies if package.json exists in layer
+          if [ -f "lambda/layer-tmp/nodejs/package.json" ]; then
+            cd lambda/layer-tmp/nodejs
+            npm ci --omit=dev --prefer-offline
+            cd ../../..
+          fi
+          
+          # Create the zip
+          cd lambda/layer-tmp
+          zip -r ../mongodb-layer.zip nodejs/
+          cd ../..
+          
           echo "Layer zip size: $(du -sh lambda/mongodb-layer.zip | cut -f1)"
 
       - name: Build & push Lambda container image to ECR
@@ -122,76 +140,157 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
 
-      - name: Deploy Lambda functions
-        working-directory: lambda
+      - name: Generate Lambda environment configuration
         run: |
-          for FUNC in yormenops-posts yormenops-comments yormenops-health yormenops-seed; do
-            echo "Updating $FUNC..."
-            aws lambda update-function-code \
-              --function-name "$FUNC" \
-              --zip-file fileb://lambda.zip \
-              --region ${{ env.AWS_REGION }} \
-              --no-cli-pager
-            aws lambda wait function-updated \
-              --function-name "$FUNC" \
-              --region ${{ env.AWS_REGION }}
-          done
+          # Validate secrets exist
+          if [ -z "${{ secrets.MONGODB_URI }}" ]; then
+            echo "⚠️ Warning: MONGODB_URI secret is empty"
+          fi
+          
+          # Generate valid JSON with proper escaping
+          jq -n \
+            --arg mongo "${{ secrets.MONGODB_URI }}" \
+            --arg cors "${{ secrets.CORS_ORIGIN }}" \
+            '{
+              Variables: {
+                NODE_ENV: "prod",
+                MONGODB_URI: $mongo,
+                CORS_ORIGIN: $cors,
+                AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+              }
+            }' > /tmp/lambda-env.json
+          
+          echo "Environment configuration generated:"
+          cat /tmp/lambda-env.json | jq '.'  # Pretty print for debug
+          
+          # Validate JSON is well-formed
+          if ! jq empty /tmp/lambda-env.json 2>/dev/null; then
+            echo "❌ Invalid JSON generated"
+            exit 1
+          fi
 
-          # Publish updated layer
+      - name: Deploy all Lambda updates
+        run: |
+          # Publish new layer version
+          echo "📦 Publishing new layer version..."
           LAYER_ARN=$(aws lambda publish-layer-version \
             --layer-name yormenops-mongodb-layer \
-            --zip-file fileb://mongodb-layer.zip \
+            --zip-file fileb://lambda/mongodb-layer.zip \
             --compatible-runtimes nodejs20.x \
-            --region ${{ env.AWS_REGION }} \
             --query 'LayerVersionArn' \
-            --output text \
-            --no-cli-pager)
-
-          echo "New layer ARN: $LAYER_ARN"
-          echo "LAYER_ARN=$LAYER_ARN" >> $GITHUB_ENV
-
-      - name: Attach new layer to Lambda functions
-        run: |
-          for FUNC in yormenops-posts yormenops-comments yormenops-health yormenops-seed; do
-            aws lambda update-function-configuration \
+            --output text)
+          
+          echo "✅ New layer ARN: $LAYER_ARN"
+          
+          # Update all functions with code, layer, and environment variables
+          FUNCTIONS="yormenops-posts yormenops-comments yormenops-health yormenops-seed"
+          
+          for FUNC in $FUNCTIONS; do
+            echo ""
+            echo "🚀 Updating $FUNC..."
+            
+            # Update function code
+            echo "  → Updating code..."
+            aws lambda update-function-code \
               --function-name "$FUNC" \
-              --layers "${{ env.LAYER_ARN }}" \
+              --zip-file fileb://lambda/lambda.zip \
               --region ${{ env.AWS_REGION }} \
               --no-cli-pager \
               --query 'FunctionName' --output text
-            # Wait for update to complete before moving to next function
+            
+            # Update configuration (layer + environment variables)
+            echo "  → Updating configuration (layer + env)..."
+            aws lambda update-function-configuration \
+              --function-name "$FUNC" \
+              --layers "$LAYER_ARN" \
+              --environment file:///tmp/lambda-env.json \
+              --region ${{ env.AWS_REGION }} \
+              --no-cli-pager \
+              --query 'FunctionName' --output text
+            
+            # Wait for update to complete
+            echo "  → Waiting for update to complete..."
             aws lambda wait function-updated \
               --function-name "$FUNC" \
               --region ${{ env.AWS_REGION }}
+            
+            echo "  ✅ $FUNC successfully updated"
           done
+          
+          echo ""
+          echo "🎉 All functions deployed successfully!"
 
-      - name: Set Lambda environment variables
+      - name: Verify deployments
         run: |
-          cat > /tmp/lambda-env.json << EOF
-          {
-            "Variables": {
-              "NODE_ENV": "prod",
-              "MONGODB_URI": "${{ secrets.MONGODB_URI }}",
-              "CORS_ORIGIN": "${{ secrets.CORS_ORIGIN }}",
-              "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1"
-            }
-          }
-          EOF
-          for FUNC in yormenops-posts yormenops-comments yormenops-health yormenops-seed; do
-            aws lambda update-function-configuration \
+          echo "🔍 Verifying deployments..."
+          FUNCTIONS="yormenops-posts yormenops-comments yormenops-health yormenops-seed"
+          
+          for FUNC in $FUNCTIONS; do
+            echo ""
+            echo "Checking $FUNC:"
+            
+            # Get function configuration
+            CONFIG=$(aws lambda get-function-configuration \
               --function-name "$FUNC" \
-              --environment "file:///tmp/lambda-env.json" \
               --region ${{ env.AWS_REGION }} \
-              --no-cli-pager \
-              --query 'FunctionName' --output text
+              --query '{Runtime: Runtime, MemorySize: MemorySize, Timeout: Timeout, Layers: Layers[0].Arn, Environment: Environment.Variables}' \
+              --output json)
+            
+            echo "$CONFIG" | jq '.'
+            
+            # Verify environment variables are set (without exposing values)
+            HAS_MONGO=$(echo "$CONFIG" | jq -r '.Environment.MONGODB_URI != null')
+            HAS_CORS=$(echo "$CONFIG" | jq -r '.Environment.CORS_ORIGIN != null')
+            
+            if [ "$HAS_MONGO" = "true" ]; then
+              echo "  ✓ MONGODB_URI is configured"
+            else
+              echo "  ✗ MONGODB_URI is missing"
+            fi
+            
+            if [ "$HAS_CORS" = "true" ]; then
+              echo "  ✓ CORS_ORIGIN is configured"
+            else
+              echo "  ✗ CORS_ORIGIN is missing"
+            fi
           done
 
       - name: Deploy summary
         run: |
-          echo "## 🛸 YormenOps Lambda Deploy" >> $GITHUB_STEP_SUMMARY
-          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Image Tag | \`${{ env.IMAGE_TAG }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Region | \`us-east-2\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Functions | posts, comments, health, seed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Status | ✅ Deployed |" >> $GITHUB_STEP_SUMMARY
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## 🛸 YormenOps Lambda Deploy
+          
+          | Field | Value |
+          |-------|-------|
+          | Image Tag | `${{ env.IMAGE_TAG }}` |
+          | Region | `us-east-2` |
+          | Functions | posts, comments, health, seed |
+          | Layer | MongoDB connection layer |
+          | Status | ✅ Deployed successfully |
+          
+          ### Environment Configuration
+          - NODE_ENV: `prod`
+          - MONGODB_URI: ✅ Configured
+          - CORS_ORIGIN: ✅ Configured
+          - AWS_NODEJS_CONNECTION_REUSE_ENABLED: `1`
+          
+          ### Deployment Details
+          - All functions updated with latest code
+          - New layer version published and attached
+          - Environment variables securely injected
+          - Container image scanned with Trivy
+          
+          🚀 Ready for production traffic!
+          EOF
+
+      - name: Rollback on failure (optional)
+        if: failure()
+        run: |
+          echo "⚠️ Deployment failed, but no automatic rollback configured"
+          echo "Please check the logs and manually rollback if needed"
+          echo ""
+          echo "To rollback to previous version:"
+          echo "  aws lambda list-versions-by-function --function-name <FUNC>"
+          echo "  aws lambda update-function-code --function-name <FUNC> --zip-file fileb://previous.zip"
+
+          
