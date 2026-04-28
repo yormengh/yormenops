@@ -4,16 +4,16 @@ on:
   push:
     branches: [main]
     paths:
-      - 'lambda/**'
-      - '.github/workflows/lambda.yml'
+      - "lambda/**"
+      - ".github/workflows/lambda.yml"
   pull_request:
     branches: [main]
     paths:
-      - 'lambda/**'
+      - "lambda/**"
   workflow_dispatch:
 
 env:
-  AWS_REGION:   us-east-2
+  AWS_REGION: us-east-2
   NODE_VERSION: "20"
 
 jobs:
@@ -131,7 +131,7 @@ jobs:
           if [ -z "${{ secrets.MONGODB_URI }}" ]; then
             echo "⚠️ Warning: MONGODB_URI secret is empty"
           fi
-          
+
           # Generate valid JSON with proper escaping using jq
           jq -n \
             --arg mongo "${{ secrets.MONGODB_URI }}" \
@@ -144,15 +144,15 @@ jobs:
                 AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
               }
             }' > /tmp/lambda-env.json
-          
+
           echo "✅ Environment configuration generated"
-          
+
           # Validate JSON is well-formed
           if ! jq empty /tmp/lambda-env.json 2>/dev/null; then
             echo "❌ Invalid JSON generated"
             exit 1
           fi
-          
+
           # Debug output (safe - doesn't show actual values)
           echo "Environment config structure:"
           cat /tmp/lambda-env.json | jq 'del(.Variables.MONGODB_URI, .Variables.CORS_ORIGIN)'
@@ -160,101 +160,66 @@ jobs:
       - name: Deploy Lambda functions (ZIP + Layer)
         working-directory: lambda
         run: |
-          set -e  # Exit on any error
-          
-          # Function to wait for function to be ready with timeout
-          wait_for_function() {
-            local FUNC=$1
-            local MAX_WAIT=180  # 3 minutes max wait
-            local WAIT_TIME=0
-            
-            echo "  → Waiting for $FUNC to be ready (max ${MAX_WAIT}s)..."
-            while [ $WAIT_TIME -lt $MAX_WAIT ]; do
-              if aws lambda wait function-updated --function-name "$FUNC" --region ${{ env.AWS_REGION }} --timeout 60 2>/dev/null; then
-                echo "  ✓ $FUNC is ready"
-                return 0
-              fi
-              echo "  → Still waiting... ($WAIT_TIME seconds)"
-              sleep 5
-              WAIT_TIME=$((WAIT_TIME + 5))
-            done
-            echo "  ✗ Timeout waiting for $FUNC"
-            return 1
-          }
-          
+          set -e
+
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📦 Step 1: Publishing new layer version"
+          echo "📦 Publishing new layer version"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          
-          # Publish updated layer
+
+          # Publish layer
           LAYER_ARN=$(aws lambda publish-layer-version \
             --layer-name yormenops-mongodb-layer \
-            --zip-file fileb:///home/runner/work/yormenops/yormenops/lambda/mongodb-layer.zip \
+            --zip-file fileb://mongodb-layer.zip \
             --compatible-runtimes nodejs20.x \
             --region ${{ env.AWS_REGION }} \
             --query 'LayerVersionArn' \
             --output text)
-          
+
           echo "✅ New layer ARN: $LAYER_ARN"
-          
           echo ""
+
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🚀 Step 2: Deploying functions one by one"
+          echo "🚀 Deploying functions"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          
-          # List of functions to deploy
+
           FUNCTIONS="yormenops-posts yormenops-comments yormenops-health yormenops-seed"
-          
+
           for FUNC in $FUNCTIONS; do
             echo ""
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "📦 Updating: $FUNC"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             
-            # Step 1: Update function code
+            # Update code (this is async, but we'll use the waiter)
             echo "  → Updating code..."
-            if ! aws lambda update-function-code \
+            aws lambda update-function-code \
               --function-name "$FUNC" \
-              --zip-file fileb:///home/runner/work/yormenops/yormenops/lambda/lambda.zip \
+              --zip-file fileb://lambda.zip \
               --region ${{ env.AWS_REGION }} \
-              --no-cli-pager \
-              --query 'FunctionName' --output text; then
-              echo "  ✗ Failed to update code for $FUNC"
-              exit 1
-            fi
+              --no-cli-pager > /dev/null
             
-            # Wait for code update to complete
-            if ! wait_for_function "$FUNC"; then
-              echo "  ✗ Code update timeout for $FUNC"
-              exit 1
-            fi
+            # Wait for code update
+            echo "  → Waiting for code update..."
+            aws lambda wait function-updated \
+              --function-name "$FUNC" \
+              --region ${{ env.AWS_REGION }} \
+              --timeout 120
             
-            # Brief pause to ensure function is fully stable
-            sleep 2
-            
-            # Step 2: Update configuration (layer + environment variables)
-            echo "  → Updating configuration (layer + env vars)..."
-            if ! aws lambda update-function-configuration \
+            # Update configuration
+            echo "  → Updating configuration..."
+            aws lambda update-function-configuration \
               --function-name "$FUNC" \
               --layers "$LAYER_ARN" \
               --environment file:///tmp/lambda-env.json \
               --region ${{ env.AWS_REGION }} \
-              --no-cli-pager \
-              --query 'FunctionName' --output text; then
-              echo "  ✗ Failed to update configuration for $FUNC"
-              exit 1
-            fi
+              --no-cli-pager > /dev/null
             
-            # Wait for configuration update to complete
-            if ! wait_for_function "$FUNC"; then
-              echo "  ✗ Configuration update timeout for $FUNC"
-              exit 1
-            fi
+            # Wait for config update
+            echo "  → Waiting for configuration update..."
+            aws lambda wait function-updated \
+              --function-name "$FUNC" \
+              --region ${{ env.AWS_REGION }} \
+              --timeout 120
             
-            echo "  ✅ $FUNC successfully updated"
-            
-            # Extra pause between functions to avoid rate limits
-            sleep 1
+            echo "  ✅ $FUNC updated successfully"
           done
           
           echo ""
@@ -346,5 +311,3 @@ jobs:
           echo ""
           echo "Check the logs above for the exact error."
           exit 1
-
-          
