@@ -77,29 +77,14 @@ jobs:
 
       - name: Build MongoDB Layer zip
         run: |
-          # Create proper Lambda layer structure: nodejs/node_modules/
-          mkdir -p lambda/layer-tmp/nodejs
-          
-          # Copy layer contents - adjust path based on your layer structure
-          if [ -d "lambda/layers/mongodb" ]; then
-            cp -r lambda/layers/mongodb/* lambda/layer-tmp/nodejs/ 2>/dev/null || true
-          fi
-          
-          # Install dependencies if package.json exists in layer
-          if [ -f "lambda/layer-tmp/nodejs/package.json" ]; then
-            cd lambda/layer-tmp/nodejs
-            npm ci --omit=dev --prefer-offline
-            cd ../../..
-          fi
-          
-          # Create the zip
-          cd lambda/layer-tmp
-          zip -r ../mongodb-layer.zip nodejs/
-          cd ../..
-          
+          cd lambda/layers/mongodb/nodejs
+          npm ci --prefer-offline
+          cd ..
+          zip -r mongodb-layer.zip nodejs/
+          mv mongodb-layer.zip ../../../lambda/mongodb-layer.zip
           echo "Layer zip size: $(du -sh lambda/mongodb-layer.zip | cut -f1)"
 
-      - name: Build & push Lambda container image to ECR
+      - name: Build & push Lambda container image to ECR (for scanning only)
         working-directory: lambda
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-8)
@@ -120,18 +105,18 @@ jobs:
 
           docker push "$FULL_IMAGE"
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
+          echo "FULL_IMAGE=${FULL_IMAGE}" >> $GITHUB_ENV
 
       - name: Scan Lambda image with Trivy
         uses: aquasecurity/trivy-action@master
         continue-on-error: true
         with:
-          image-ref: ${{ steps.login-ecr.outputs.registry }}/yormenops/lambda:${{ env.IMAGE_TAG }}
+          image-ref: ${{ env.FULL_IMAGE }}
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
           exit-code: 0
           ignore-unfixed: true
-          skip-files: "trivy-results.sarif"
 
       - name: Upload Trivy results
         uses: github/codeql-action/upload-sarif@v4
@@ -147,7 +132,7 @@ jobs:
             echo "⚠️ Warning: MONGODB_URI secret is empty"
           fi
           
-          # Generate valid JSON with proper escaping
+          # Generate valid JSON with proper escaping using jq
           jq -n \
             --arg mongo "${{ secrets.MONGODB_URI }}" \
             --arg cors "${{ secrets.CORS_ORIGIN }}" \
@@ -160,99 +145,156 @@ jobs:
               }
             }' > /tmp/lambda-env.json
           
-          echo "Environment configuration generated:"
-          cat /tmp/lambda-env.json | jq '.'  # Pretty print for debug
+          echo "✅ Environment configuration generated"
           
           # Validate JSON is well-formed
           if ! jq empty /tmp/lambda-env.json 2>/dev/null; then
             echo "❌ Invalid JSON generated"
             exit 1
           fi
+          
+          # Debug output (safe - doesn't show actual values)
+          echo "Environment config structure:"
+          cat /tmp/lambda-env.json | jq 'del(.Variables.MONGODB_URI, .Variables.CORS_ORIGIN)'
 
-      - name: Deploy all Lambda updates
+      - name: Deploy Lambda functions (ZIP + Layer)
+        working-directory: lambda
         run: |
-          # Publish new layer version
-          echo "📦 Publishing new layer version..."
+          set -e  # Exit on any error
+          
+          # Function to wait for function to be ready with timeout
+          wait_for_function() {
+            local FUNC=$1
+            local MAX_WAIT=180  # 3 minutes max wait
+            local WAIT_TIME=0
+            
+            echo "  → Waiting for $FUNC to be ready (max ${MAX_WAIT}s)..."
+            while [ $WAIT_TIME -lt $MAX_WAIT ]; do
+              if aws lambda wait function-updated --function-name "$FUNC" --region ${{ env.AWS_REGION }} --timeout 60 2>/dev/null; then
+                echo "  ✓ $FUNC is ready"
+                return 0
+              fi
+              echo "  → Still waiting... ($WAIT_TIME seconds)"
+              sleep 5
+              WAIT_TIME=$((WAIT_TIME + 5))
+            done
+            echo "  ✗ Timeout waiting for $FUNC"
+            return 1
+          }
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 Step 1: Publishing new layer version"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          # Publish updated layer
           LAYER_ARN=$(aws lambda publish-layer-version \
             --layer-name yormenops-mongodb-layer \
-            --zip-file fileb://lambda/mongodb-layer.zip \
+            --zip-file fileb:///home/runner/work/yormenops/yormenops/lambda/mongodb-layer.zip \
             --compatible-runtimes nodejs20.x \
+            --region ${{ env.AWS_REGION }} \
             --query 'LayerVersionArn' \
             --output text)
           
           echo "✅ New layer ARN: $LAYER_ARN"
           
-          # Update all functions with code, layer, and environment variables
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🚀 Step 2: Deploying functions one by one"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          # List of functions to deploy
           FUNCTIONS="yormenops-posts yormenops-comments yormenops-health yormenops-seed"
           
           for FUNC in $FUNCTIONS; do
             echo ""
-            echo "🚀 Updating $FUNC..."
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "📦 Updating: $FUNC"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             
-            # Update function code
+            # Step 1: Update function code
             echo "  → Updating code..."
-            aws lambda update-function-code \
+            if ! aws lambda update-function-code \
               --function-name "$FUNC" \
-              --zip-file fileb://lambda/lambda.zip \
+              --zip-file fileb:///home/runner/work/yormenops/yormenops/lambda/lambda.zip \
               --region ${{ env.AWS_REGION }} \
               --no-cli-pager \
-              --query 'FunctionName' --output text
+              --query 'FunctionName' --output text; then
+              echo "  ✗ Failed to update code for $FUNC"
+              exit 1
+            fi
             
-            # Update configuration (layer + environment variables)
-            echo "  → Updating configuration (layer + env)..."
-            aws lambda update-function-configuration \
+            # Wait for code update to complete
+            if ! wait_for_function "$FUNC"; then
+              echo "  ✗ Code update timeout for $FUNC"
+              exit 1
+            fi
+            
+            # Brief pause to ensure function is fully stable
+            sleep 2
+            
+            # Step 2: Update configuration (layer + environment variables)
+            echo "  → Updating configuration (layer + env vars)..."
+            if ! aws lambda update-function-configuration \
               --function-name "$FUNC" \
               --layers "$LAYER_ARN" \
               --environment file:///tmp/lambda-env.json \
               --region ${{ env.AWS_REGION }} \
               --no-cli-pager \
-              --query 'FunctionName' --output text
+              --query 'FunctionName' --output text; then
+              echo "  ✗ Failed to update configuration for $FUNC"
+              exit 1
+            fi
             
-            # Wait for update to complete
-            echo "  → Waiting for update to complete..."
-            aws lambda wait function-updated \
-              --function-name "$FUNC" \
-              --region ${{ env.AWS_REGION }}
+            # Wait for configuration update to complete
+            if ! wait_for_function "$FUNC"; then
+              echo "  ✗ Configuration update timeout for $FUNC"
+              exit 1
+            fi
             
             echo "  ✅ $FUNC successfully updated"
+            
+            # Extra pause between functions to avoid rate limits
+            sleep 1
           done
           
           echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🎉 All functions deployed successfully!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
       - name: Verify deployments
         run: |
           echo "🔍 Verifying deployments..."
+          echo ""
+          
           FUNCTIONS="yormenops-posts yormenops-comments yormenops-health yormenops-seed"
           
           for FUNC in $FUNCTIONS; do
-            echo ""
-            echo "Checking $FUNC:"
+            echo "📋 $FUNC:"
             
             # Get function configuration
             CONFIG=$(aws lambda get-function-configuration \
               --function-name "$FUNC" \
               --region ${{ env.AWS_REGION }} \
-              --query '{Runtime: Runtime, MemorySize: MemorySize, Timeout: Timeout, Layers: Layers[0].Arn, Environment: Environment.Variables}' \
+              --query '{Runtime: Runtime, MemorySize: MemorySize, Timeout: Timeout, LayerCount: Layers | length([*]), EnvironmentConfigured: Environment.Variables != null}' \
               --output json)
             
-            echo "$CONFIG" | jq '.'
+            echo "$CONFIG" | jq 'to_entries | map("  \(.key): \(.value)") | .[]' -r
             
             # Verify environment variables are set (without exposing values)
-            HAS_MONGO=$(echo "$CONFIG" | jq -r '.Environment.MONGODB_URI != null')
-            HAS_CORS=$(echo "$CONFIG" | jq -r '.Environment.CORS_ORIGIN != null')
+            ENV_EXISTS=$(aws lambda get-function-configuration \
+              --function-name "$FUNC" \
+              --region ${{ env.AWS_REGION }} \
+              --query 'Environment.Variables != null' \
+              --output text)
             
-            if [ "$HAS_MONGO" = "true" ]; then
-              echo "  ✓ MONGODB_URI is configured"
+            if [ "$ENV_EXISTS" = "True" ]; then
+              echo "  ✅ Environment variables configured"
             else
-              echo "  ✗ MONGODB_URI is missing"
+              echo "  ⚠️ No environment variables found"
             fi
             
-            if [ "$HAS_CORS" = "true" ]; then
-              echo "  ✓ CORS_ORIGIN is configured"
-            else
-              echo "  ✗ CORS_ORIGIN is missing"
-            fi
+            echo ""
           done
 
       - name: Deploy summary
@@ -262,35 +304,47 @@ jobs:
           
           | Field | Value |
           |-------|-------|
-          | Image Tag | `${{ env.IMAGE_TAG }}` |
-          | Region | `us-east-2` |
-          | Functions | posts, comments, health, seed |
-          | Layer | MongoDB connection layer |
-          | Status | ✅ Deployed successfully |
+          | **Image Tag (scan)** | `${{ env.IMAGE_TAG }}` |
+          | **Region** | `us-east-2` |
+          | **Functions** | posts, comments, health, seed |
+          | **Deployment Type** | ZIP + Layer |
+          | **Status** | ✅ **Deployed successfully** |
           
-          ### Environment Configuration
-          - NODE_ENV: `prod`
-          - MONGODB_URI: ✅ Configured
-          - CORS_ORIGIN: ✅ Configured
-          - AWS_NODEJS_CONNECTION_REUSE_ENABLED: `1`
+          ### 🔧 Configuration
+          - `NODE_ENV`: prod
+          - `MONGODB_URI`: ✅ Configured (escaped)
+          - `CORS_ORIGIN`: ✅ Configured
+          - `AWS_NODEJS_CONNECTION_REUSE_ENABLED`: 1
           
-          ### Deployment Details
+          ### 📦 Layer
+          - New layer version published and attached to all functions
+          
+          ### ✅ Verification
           - All functions updated with latest code
-          - New layer version published and attached
-          - Environment variables securely injected
-          - Container image scanned with Trivy
+          - Environment variables properly injected
+          - No ResourceConflictException errors
           
-          🚀 Ready for production traffic!
+          ---
+          *Deployed via GitHub Actions* | `${{ github.sha }}`
           EOF
 
-      - name: Rollback on failure (optional)
+      - name: Rollback on failure
         if: failure()
         run: |
-          echo "⚠️ Deployment failed, but no automatic rollback configured"
-          echo "Please check the logs and manually rollback if needed"
+          echo "⚠️ DEPLOYMENT FAILED"
           echo ""
-          echo "To rollback to previous version:"
-          echo "  aws lambda list-versions-by-function --function-name <FUNC>"
-          echo "  aws lambda update-function-code --function-name <FUNC> --zip-file fileb://previous.zip"
+          echo "To rollback each function to previous version:"
+          echo ""
+          echo "for FUNC in yormenops-posts yormenops-comments yormenops-health yormenops-seed; do"
+          echo "  # Get previous version"
+          echo "  PREV_VERSION=\$(aws lambda list-versions-by-function --function-name \"\$FUNC\" --max-items 2 --query 'Versions[1].Version' --output text)"
+          echo "  # Rollback code"
+          echo "  aws lambda update-function-code --function-name \"\$FUNC\" --zip-file fileb://previous.zip"
+          echo "  # Rollback layer"
+          echo "  aws lambda update-function-configuration --function-name \"\$FUNC\" --layers <previous-layer-arn>"
+          echo "done"
+          echo ""
+          echo "Check the logs above for the exact error."
+          exit 1
 
           

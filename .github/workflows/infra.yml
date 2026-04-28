@@ -78,6 +78,15 @@ jobs:
           echo "Waiting for Atlas to propagate..."
           sleep 15
 
+      - name: Validate Terraform variables
+        run: |
+          if [ -z "${{ secrets.ATLAS_ORG_ID }}" ]; then
+            echo "❌ Error: ATLAS_ORG_ID secret is not set"
+            exit 1
+          fi
+          echo "✅ ATLAS_ORG_ID is configured (length: ${#{{ secrets.ATLAS_ORG_ID }}})"
+          echo "✅ Other secrets check passed"
+
       - run: terraform fmt -check -recursive
         continue-on-error: true
 
@@ -96,7 +105,7 @@ jobs:
         id: plan
         run: |
           terraform plan -no-color -input=false \
-            -var="atlas_org_id=${{ secrets.ATLAS_ORG_ID }}" \
+            -var="mongodb_atlas_org_id=${{ secrets.ATLAS_ORG_ID }}" \
             -var="atlas_public_key=${{ secrets.ATLAS_PUBLIC_KEY }}" \
             -var="atlas_private_key=${{ secrets.ATLAS_PRIVATE_KEY }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \

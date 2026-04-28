@@ -14,7 +14,7 @@ variable "github_repo" {
 }
 
 # MongoDB Atlas
-variable "atlas_org_id" {
+variable "mongodb_atlas_org_id" {
   type        = string
   description = "Atlas Org ID from cloud.mongodb.com"
 }
