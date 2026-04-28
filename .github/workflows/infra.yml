@@ -49,7 +49,6 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Build Lambda zips before apply so Terraform can hash them
       - name: Build Lambda artifacts
         if: github.ref == 'refs/heads/main'
         run: |
@@ -62,37 +61,71 @@ jobs:
       - name: Whitelist GitHub Actions IP in Atlas
         run: |
           IP=$(curl -s https://api.ipify.org)
-          echo "Runner IP: $IP"
+          echo "📍 Runner IP: $IP"
+          
+          ATLAS_KEY_ID="${{ secrets.ATLAS_PUBLIC_KEY }}"
+          
           HTTP_CODE=$(curl -s -o /tmp/atlas_response.json -w "%{http_code}" \
             -u "${{ secrets.ATLAS_PUBLIC_KEY }}:${{ secrets.ATLAS_PRIVATE_KEY }}" \
             --digest \
             -H "Accept: application/vnd.atlas.2023-01-01+json" \
             -H "Content-Type: application/json" \
-            -X POST "https://cloud.mongodb.com/api/atlas/v2/orgs/${{ secrets.ATLAS_ORG_ID }}/apiKeys/${{ secrets.ATLAS_KEY_ID }}/accessList" \
-            --data "[{\"ipAddress\":\"${IP}\",\"comment\":\"github-actions-temp\"}]")
-          echo "HTTP status: $HTTP_CODE"
-          cat /tmp/atlas_response.json
-          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-            echo "Failed to whitelist IP. Trying to verify existing access..."
+            -X POST "https://cloud.mongodb.com/api/atlas/v2/orgs/${{ secrets.ATLAS_ORG_ID }}/apiKeys/${ATLAS_KEY_ID}/accessList" \
+            --data "[{\"ipAddress\":\"${IP}\",\"comment\":\"github-actions-${GITHUB_RUN_ID}\"}]")
+          
+          echo "HTTP Status: $HTTP_CODE"
+          
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+            echo "✅ IP whitelisted successfully"
+          elif [ "$HTTP_CODE" = "409" ]; then
+            echo "ℹ️ IP already whitelisted"
+          else
+            echo "⚠️ Failed to whitelist IP (HTTP $HTTP_CODE)"
           fi
-          echo "Waiting for Atlas to propagate..."
+          
+          echo "⏳ Waiting for Atlas propagation..."
           sleep 15
 
       - name: Validate Terraform variables
         run: |
+          echo "🔍 Validating Terraform variables..."
+          
           if [ -z "${{ secrets.ATLAS_ORG_ID }}" ]; then
             echo "❌ Error: ATLAS_ORG_ID secret is not set"
             exit 1
           fi
-          echo "✅ ATLAS_ORG_ID is configured (length: ${#{{ secrets.ATLAS_ORG_ID }}})"
-          echo "✅ Other secrets check passed"
+          echo "✅ ATLAS_ORG_ID: configured"
+          
+          if [ -z "${{ secrets.ATLAS_PUBLIC_KEY }}" ]; then
+            echo "❌ Error: ATLAS_PUBLIC_KEY secret is not set"
+            exit 1
+          fi
+          echo "✅ ATLAS_PUBLIC_KEY: configured"
+          
+          if [ -z "${{ secrets.ATLAS_PRIVATE_KEY }}" ]; then
+            echo "❌ Error: ATLAS_PRIVATE_KEY secret is not set"
+            exit 1
+          fi
+          echo "✅ ATLAS_PRIVATE_KEY: configured"
+          
+          if [ -z "${{ secrets.DB_PASSWORD }}" ]; then
+            echo "❌ Error: DB_PASSWORD secret is not set"
+            exit 1
+          fi
+          echo "✅ DB_PASSWORD: configured"
+          
+          echo ""
+          echo "✅ All required variables are configured"
 
-      - run: terraform fmt -check -recursive
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive
         continue-on-error: true
 
-      - run: terraform init
+      - name: Terraform Init
+        run: terraform init
 
-      - run: terraform validate -no-color
+      - name: Terraform Validate
+        run: terraform validate -no-color
 
       - name: Checkov IaC scan
         uses: bridgecrewio/checkov-action@master

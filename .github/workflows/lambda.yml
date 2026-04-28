@@ -127,12 +127,10 @@ jobs:
 
       - name: Generate Lambda environment configuration
         run: |
-          # Validate secrets exist
           if [ -z "${{ secrets.MONGODB_URI }}" ]; then
             echo "⚠️ Warning: MONGODB_URI secret is empty"
           fi
 
-          # Generate valid JSON with proper escaping using jq
           jq -n \
             --arg mongo "${{ secrets.MONGODB_URI }}" \
             --arg cors "${{ secrets.CORS_ORIGIN }}" \
@@ -147,15 +145,10 @@ jobs:
 
           echo "✅ Environment configuration generated"
 
-          # Validate JSON is well-formed
           if ! jq empty /tmp/lambda-env.json 2>/dev/null; then
             echo "❌ Invalid JSON generated"
             exit 1
           fi
-
-          # Debug output (safe - doesn't show actual values)
-          echo "Environment config structure:"
-          cat /tmp/lambda-env.json | jq 'del(.Variables.MONGODB_URI, .Variables.CORS_ORIGIN)'
 
       - name: Deploy Lambda functions (ZIP + Layer)
         working-directory: lambda
@@ -166,7 +159,6 @@ jobs:
           echo "📦 Publishing new layer version"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-          # Publish layer
           LAYER_ARN=$(aws lambda publish-layer-version \
             --layer-name yormenops-mongodb-layer \
             --zip-file fileb://mongodb-layer.zip \
@@ -188,7 +180,6 @@ jobs:
             echo ""
             echo "📦 Updating: $FUNC"
             
-            # Update code (this is async, but we'll use the waiter)
             echo "  → Updating code..."
             aws lambda update-function-code \
               --function-name "$FUNC" \
@@ -196,14 +187,11 @@ jobs:
               --region ${{ env.AWS_REGION }} \
               --no-cli-pager > /dev/null
             
-            # Wait for code update
             echo "  → Waiting for code update..."
             aws lambda wait function-updated \
               --function-name "$FUNC" \
-              --region ${{ env.AWS_REGION }} \
-              --timeout 120
+              --region ${{ env.AWS_REGION }}
             
-            # Update configuration
             echo "  → Updating configuration..."
             aws lambda update-function-configuration \
               --function-name "$FUNC" \
@@ -212,12 +200,10 @@ jobs:
               --region ${{ env.AWS_REGION }} \
               --no-cli-pager > /dev/null
             
-            # Wait for config update
             echo "  → Waiting for configuration update..."
             aws lambda wait function-updated \
               --function-name "$FUNC" \
-              --region ${{ env.AWS_REGION }} \
-              --timeout 120
+              --region ${{ env.AWS_REGION }}
             
             echo "  ✅ $FUNC updated successfully"
           done
@@ -237,7 +223,6 @@ jobs:
           for FUNC in $FUNCTIONS; do
             echo "📋 $FUNC:"
             
-            # Get function configuration
             CONFIG=$(aws lambda get-function-configuration \
               --function-name "$FUNC" \
               --region ${{ env.AWS_REGION }} \
@@ -246,7 +231,6 @@ jobs:
             
             echo "$CONFIG" | jq 'to_entries | map("  \(.key): \(.value)") | .[]' -r
             
-            # Verify environment variables are set (without exposing values)
             ENV_EXISTS=$(aws lambda get-function-configuration \
               --function-name "$FUNC" \
               --region ${{ env.AWS_REGION }} \
@@ -277,17 +261,9 @@ jobs:
           
           ### 🔧 Configuration
           - `NODE_ENV`: prod
-          - `MONGODB_URI`: ✅ Configured (escaped)
+          - `MONGODB_URI`: ✅ Configured
           - `CORS_ORIGIN`: ✅ Configured
           - `AWS_NODEJS_CONNECTION_REUSE_ENABLED`: 1
-          
-          ### 📦 Layer
-          - New layer version published and attached to all functions
-          
-          ### ✅ Verification
-          - All functions updated with latest code
-          - Environment variables properly injected
-          - No ResourceConflictException errors
           
           ---
           *Deployed via GitHub Actions* | `${{ github.sha }}`
@@ -297,17 +273,5 @@ jobs:
         if: failure()
         run: |
           echo "⚠️ DEPLOYMENT FAILED"
-          echo ""
-          echo "To rollback each function to previous version:"
-          echo ""
-          echo "for FUNC in yormenops-posts yormenops-comments yormenops-health yormenops-seed; do"
-          echo "  # Get previous version"
-          echo "  PREV_VERSION=\$(aws lambda list-versions-by-function --function-name \"\$FUNC\" --max-items 2 --query 'Versions[1].Version' --output text)"
-          echo "  # Rollback code"
-          echo "  aws lambda update-function-code --function-name \"\$FUNC\" --zip-file fileb://previous.zip"
-          echo "  # Rollback layer"
-          echo "  aws lambda update-function-configuration --function-name \"\$FUNC\" --layers <previous-layer-arn>"
-          echo "done"
-          echo ""
           echo "Check the logs above for the exact error."
           exit 1
