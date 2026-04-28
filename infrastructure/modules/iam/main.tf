@@ -97,8 +97,8 @@ data "aws_iam_policy_document" "github_actions_policy" {
 
   # Terraform plan — read permissions
   statement {
-    effect    = "Allow"
-    actions   = [
+    effect = "Allow"
+    actions = [
       "iam:GetRole", "iam:GetPolicy", "iam:GetPolicyVersion",
       "iam:ListRolePolicies", "iam:ListAttachedRolePolicies",
       "iam:GetOpenIDConnectProvider", "iam:GetRolePolicy",
@@ -125,8 +125,8 @@ data "aws_iam_policy_document" "github_actions_policy" {
   }
 
   statement {
-    effect    = "Allow"
-    actions   = [
+    effect = "Allow"
+    actions = [
       "s3:GetBucketPolicy", "s3:GetBucketPublicAccessBlock",
       "s3:GetBucketVersioning", "s3:GetBucketEncryption",
       "s3:GetBucketTagging", "s3:GetBucketLocation",
@@ -136,8 +136,8 @@ data "aws_iam_policy_document" "github_actions_policy" {
   }
 
   statement {
-    effect    = "Allow"
-    actions   = [
+    effect = "Allow"
+    actions = [
       "cloudfront:GetDistribution", "cloudfront:GetOriginAccessControl",
       "cloudfront:ListTagsForResource", "cloudfront:GetDistributionConfig",
     ]

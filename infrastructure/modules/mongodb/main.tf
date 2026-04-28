@@ -27,7 +27,7 @@ terraform {
 # ── Atlas Project ─────────────────────────────────────────────────────────────
 resource "mongodbatlas_project" "this" {
   name   = var.project
-  org_id = var.mongodb_atlas_org_id  # Fixed: removed "atlas_" prefix mismatch
+  org_id = var.mongodb_atlas_org_id # Fixed: removed "atlas_" prefix mismatch
 }
 
 # ── Atlas Cluster (M0 free tier) ─────────────────────────────────────────────
@@ -39,7 +39,7 @@ resource "mongodbatlas_cluster" "this" {
   backing_provider_name       = "AWS"
   provider_region_name        = "US_EAST_1"
   provider_instance_size_name = "M0"
-  
+
   # Add lifecycle to prevent accidental destruction
   lifecycle {
     prevent_destroy = true

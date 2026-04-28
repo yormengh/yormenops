@@ -63,13 +63,13 @@ module "ecr" {
 
 # ── MongoDB Atlas ─────────────────────────────────────────────────────────────
 module "mongodb" {
-  source       = "../../modules/mongodb"
-  project      = local.project
-  environment  = local.environment
-  mongodb_atlas_org_id = var.mongodb_atlas_org_id 
-  db_password  = var.db_password
-  db_name      = "yormenops"
-  tags         = local.tags
+  source               = "../../modules/mongodb"
+  project              = local.project
+  environment          = local.environment
+  mongodb_atlas_org_id = var.mongodb_atlas_org_id
+  db_password          = var.db_password
+  db_name              = "yormenops"
+  tags                 = local.tags
 }
 
 # ── Lambda functions ──────────────────────────────────────────────────────────

@@ -1,13 +1,13 @@
 # ── Variables ──────────────────────────────────────────────────────────────────
-variable "project" { 
-  type = string 
+variable "project" {
+  type = string
 }
 
-variable "environment" { 
-  type = string 
+variable "environment" {
+  type = string
 }
 
-variable "mongodb_atlas_org_id" {  # Fixed: consistent naming
+variable "mongodb_atlas_org_id" { # Fixed: consistent naming
   type        = string
   description = "MongoDB Atlas Organization ID"
   sensitive   = true

@@ -99,10 +99,10 @@ resource "aws_cloudwatch_dashboard" "main" {
   dashboard_name = "${var.project}-overview"
   dashboard_body = jsonencode({ widgets = [
     { type = "text", x = 0, y = 0, width = 24, height = 2,
-      properties = { markdown = "# YormenOps | ${var.region}" } },
+    properties = { markdown = "# YormenOps | ${var.region}" } },
     { type = "metric", x = 0, y = 2, width = 12, height = 6,
       properties = { title = "Lambda Errors", view = "timeSeries", region = var.region,
         period = 60, stat = "Sum",
-        metrics = [["AWS/Lambda", "Errors", "FunctionName", var.posts_function_name]] } },
-  ]})
+    metrics = [["AWS/Lambda", "Errors", "FunctionName", var.posts_function_name]] } },
+  ] })
 }
