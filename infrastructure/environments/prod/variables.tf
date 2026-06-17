@@ -88,3 +88,4 @@ variable "log_retention_days" {
   default     = 30
   description = "CloudWatch log retention in days"
 }
+
