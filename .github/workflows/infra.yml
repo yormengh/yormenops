@@ -63,7 +63,7 @@ jobs:
           IP=$(curl -s https://api.ipify.org)
           echo "📍 Runner IP: $IP"
           
-          ATLAS_KEY_ID="${{ secrets.ATLAS_PUBLIC_KEY }}"
+          ATLAS_KEY_ID="${{ secrets.ATLAS_KEY_ID }}"
           
           HTTP_CODE=$(curl -s -o /tmp/atlas_response.json -w "%{http_code}" \
             -u "${{ secrets.ATLAS_PUBLIC_KEY }}:${{ secrets.ATLAS_PRIVATE_KEY }}" \

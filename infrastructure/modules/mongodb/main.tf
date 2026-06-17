@@ -96,3 +96,4 @@ resource "aws_secretsmanager_secret_version" "mongodb_uri" {
     ignore_changes = [secret_string]
   }
 }
+
