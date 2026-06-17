@@ -65,9 +65,13 @@ data "aws_iam_policy_document" "github_actions_policy" {
     resources = var.lambda_function_arns
   }
 
+  # FIX 1: Added lambda:DeleteLayerVersion so Terraform can clean up old layer versions
   statement {
-    effect    = "Allow"
-    actions   = ["lambda:PublishLayerVersion"]
+    effect = "Allow"
+    actions = [
+      "lambda:PublishLayerVersion",
+      "lambda:DeleteLayerVersion",
+    ]
     resources = ["arn:aws:lambda:*:*:layer:*"]
   }
 
@@ -78,8 +82,12 @@ data "aws_iam_policy_document" "github_actions_policy" {
   }
 
   statement {
-    effect    = "Allow"
-    actions   = ["cloudfront:CreateInvalidation"]
+    effect = "Allow"
+    actions = [
+      "cloudfront:CreateInvalidation",
+      # FIX 2: Added cloudfront:UpdateDistribution for custom domain + cert management
+      "cloudfront:UpdateDistribution",
+    ]
     resources = [var.cloudfront_distribution_arn]
   }
 
@@ -113,14 +121,26 @@ data "aws_iam_policy_document" "github_actions_policy" {
   }
 
   statement {
-    effect    = "Allow"
-    actions   = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue", "secretsmanager:GetResourcePolicy", "secretsmanager:PutSecretValue", "secretsmanager:DeleteSecretValue"]
+    effect = "Allow"
+    actions = [
+      "secretsmanager:DescribeSecret",
+      "secretsmanager:GetSecretValue",
+      "secretsmanager:GetResourcePolicy",
+      "secretsmanager:PutSecretValue",
+      "secretsmanager:DeleteSecretValue",
+    ]
     resources = ["*"]
   }
 
+  # FIX 3: Added sns:Subscribe and sns:Unsubscribe for alert email subscription
   statement {
-    effect    = "Allow"
-    actions   = ["sns:GetTopicAttributes", "sns:ListTagsForResource"]
+    effect = "Allow"
+    actions = [
+      "sns:GetTopicAttributes",
+      "sns:ListTagsForResource",
+      "sns:Subscribe",
+      "sns:Unsubscribe",
+    ]
     resources = ["*"]
   }
 
@@ -138,8 +158,10 @@ data "aws_iam_policy_document" "github_actions_policy" {
   statement {
     effect = "Allow"
     actions = [
-      "cloudfront:GetDistribution", "cloudfront:GetOriginAccessControl",
-      "cloudfront:ListTagsForResource", "cloudfront:GetDistributionConfig",
+      "cloudfront:GetDistribution",
+      "cloudfront:GetOriginAccessControl",
+      "cloudfront:ListTagsForResource",
+      "cloudfront:GetDistributionConfig",
     ]
     resources = ["*"]
   }
