@@ -63,3 +63,4 @@ output "dashboard_url" {
 output "sns_alerts_arn" { value = module.monitoring.sns_topic_arn }
 output "app_log_group" { value = module.monitoring.app_log_group }
 output "cf_logs_bucket" { value = module.monitoring.cf_logs_bucket }
+

@@ -146,10 +146,10 @@ jobs:
           -var="domain_name=${{ secrets.DOMAIN_NAME }}" \
           -var="seed_token=${{ secrets.SEED_TOKEN }}" \
           -var="acm_certificate_arn=${{ secrets.ACM_CERTIFICATE_ARN }}" \
-          -refresh=false \
+          -var="mongodb_layer_zip_path=../../../lambda/mongodb-layer.zip" \
           -out=tfplan
         env:
-          TF_VAR_region: us-east-2
+         TF_VAR_region: us-east-2
 
       - name: Comment plan on PR
         if: github.event_name == 'pull_request'
@@ -170,6 +170,6 @@ jobs:
           terraform output -no-color >> $GITHUB_STEP_SUMMARY
 
 
-          
+
           
 
