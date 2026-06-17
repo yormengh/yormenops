@@ -154,3 +154,4 @@ module "iam" {
   tfstate_lock_table_arn      = "arn:aws:dynamodb:us-east-2:${data.aws_caller_identity.current.account_id}:table/yormenops-tfstate-lock"
   tags                        = local.tags
 }
+
