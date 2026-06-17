@@ -55,7 +55,7 @@ variable "mongodb_layer_zip_path" {
 # Domains (optional — leave empty for CloudFront/APIGW default domains)
 variable "domain_name" {
   type        = string
-  default     = ""
+  default     = "yormenops.dev"
   description = "Custom domain for CloudFront"
 }
 
@@ -67,7 +67,7 @@ variable "api_domain_name" {
 
 variable "acm_certificate_arn" {
   type        = string
-  default     = ""
+  default     = "arn:aws:acm:us-east-1:794038236323:certificate/60514ef9-3d7b-4b27-ba9e-5f4e4242892c"
   description = "ACM cert (us-east-1 for CF, regional for APIGW)"
 }
 

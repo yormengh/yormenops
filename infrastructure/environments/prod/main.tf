@@ -51,6 +51,7 @@ module "s3_cloudfront" {
   project     = local.project
   environment = local.environment
   domain_name = var.domain_name
+  acm_certificate_arn = var.acm_certificate_arn
   tags        = local.tags
 }
 
@@ -82,7 +83,7 @@ module "lambda" {
   mongodb_layer_zip_path = var.mongodb_layer_zip_path
   mongodb_uri            = var.mongodb_uri_override != "" ? var.mongodb_uri_override : module.mongodb.connection_uri
   mongodb_secret_arn     = module.mongodb.secret_arn
-  frontend_url           = "https://${module.s3_cloudfront.cloudfront_domain}"
+  frontend_url           = "https://${var.domain_name}"
   seed_token             = var.seed_token
   tags                   = local.tags
 }
@@ -91,7 +92,7 @@ module "lambda" {
 module "api_gateway" {
   source                 = "../../modules/api-gateway"
   project                = local.project
-  frontend_url           = "https://${module.s3_cloudfront.cloudfront_domain}"
+  frontend_url           = "https://${var.domain_name}"
   posts_function_arn     = module.lambda.posts_function_arn
   posts_function_name    = module.lambda.posts_function_name
   comments_function_arn  = module.lambda.comments_function_arn

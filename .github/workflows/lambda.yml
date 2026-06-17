@@ -130,18 +130,19 @@ jobs:
           if [ -z "${{ secrets.MONGODB_URI }}" ]; then
             echo "⚠️ Warning: MONGODB_URI secret is empty"
           fi
-
           jq -n \
-            --arg mongo "${{ secrets.MONGODB_URI }}" \
-            --arg cors "${{ secrets.CORS_ORIGIN }}" \
-            '{
-              Variables: {
-                NODE_ENV: "prod",
-                MONGODB_URI: $mongo,
-                CORS_ORIGIN: $cors,
-                AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
-              }
-            }' > /tmp/lambda-env.json
+          --arg mongo "${{ secrets.MONGODB_URI }}" \
+          --arg cors "${{ secrets.CORS_ORIGIN }}" \
+          --arg seed_token "${{ secrets.SEED_TOKEN }}" \
+          '{
+          Variables: {
+          NODE_ENV: "prod",
+          MONGODB_URI: $mongo,
+          CORS_ORIGIN: $cors,
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1",
+          SEED_TOKEN: $seed_token
+          }
+          }' > /tmp/lambda-env.json
 
           echo "✅ Environment configuration generated"
 

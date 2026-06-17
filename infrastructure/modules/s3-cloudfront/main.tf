@@ -103,11 +103,25 @@ resource "aws_cloudfront_distribution" "frontend" {
     }
   }
 
-  viewer_certificate {
-    cloudfront_default_certificate = var.acm_certificate_arn == "" ? true : false
-    acm_certificate_arn            = var.acm_certificate_arn != "" ? var.acm_certificate_arn : null
-    ssl_support_method             = var.acm_certificate_arn != "" ? "sni-only" : null
-    minimum_protocol_version       = var.acm_certificate_arn != "" ? "TLSv1.2_2021" : null
+  # Explicit viewer_certificate — no conditionals that cause CloudFront
+  # to see cloudfront_default_certificate=true alongside an ACM ARN.
+  # When no cert ARN is supplied, fall back to the CloudFront default cert
+  # (HTTP only / *.cloudfront.net); when an ARN is supplied, use SNI-only.
+  dynamic "viewer_certificate" {
+    for_each = var.acm_certificate_arn != "" ? [] : [1]
+    content {
+      cloudfront_default_certificate = true
+    }
+  }
+
+  dynamic "viewer_certificate" {
+    for_each = var.acm_certificate_arn != "" ? [1] : []
+    content {
+      cloudfront_default_certificate = false
+      acm_certificate_arn            = var.acm_certificate_arn
+      ssl_support_method             = "sni-only"
+      minimum_protocol_version       = "TLSv1.2_2021"
+    }
   }
 
   tags = var.tags
